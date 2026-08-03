@@ -7,6 +7,8 @@ import {
   Download,
   Upload,
   Trash2,
+  Pencil,
+  Save,
   CheckCircle2,
   Clock,
   ChevronLeft,
@@ -51,6 +53,16 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [editFormData, setEditFormData] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    department: DepartmentName;
+    role: EmployeeRole;
+    joiningDate: string;
+    projectId: string;
+    isActive: boolean;
+  } | null>(null);
 
   // New Employee Form
   const [formData, setFormData] = useState<NewJoinerFormData>({
@@ -65,10 +77,21 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
   });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editFormError, setEditFormError] = useState('');
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Bulk CSV text input / file upload state
   const [csvText, setCsvText] = useState('');
   const [bulkImportResult, setBulkImportResult] = useState<{ addedCount: number; skippedCount: number; errors: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timer = window.setTimeout(() => setToastMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   // Fetch Employees
   const fetchEmployees = async () => {
@@ -144,6 +167,89 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
     }
   };
 
+  const openEditEmployee = (emp: Employee) => {
+    setIsAddModalOpen(false);
+    setSelectedEmployee(emp);
+    setEditFormData({
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      department: emp.department,
+      role: emp.role,
+      joiningDate: emp.joiningDate,
+      projectId: emp.projectId || '',
+      isActive: emp.isActive
+    });
+    setEditFormError('');
+    setEditFieldErrors({});
+  };
+
+  const closeEditEmployee = () => {
+    setSelectedEmployee(null);
+    setEditFormData(null);
+    setEditFormError('');
+    setEditFieldErrors({});
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmployee || !editFormData) return;
+
+    const nextErrors: Record<string, string> = {};
+    if (!editFormData.firstName.trim()) nextErrors.firstName = 'First name is required.';
+    if (!editFormData.lastName.trim()) nextErrors.lastName = 'Last name is required.';
+    if (!editFormData.email.trim()) nextErrors.email = 'Email is required.';
+    if (!editFormData.department) nextErrors.department = 'Department is required.';
+    if (!editFormData.role) nextErrors.role = 'Role is required.';
+    if (!editFormData.joiningDate.trim()) nextErrors.joiningDate = 'Joining date is required.';
+
+    setEditFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    const patch: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      department?: string;
+      role?: string;
+      joiningDate?: string;
+      projectId?: string;
+      isActive?: boolean;
+    } = {};
+
+    const normalizedEmail = editFormData.email.trim().toLowerCase();
+    if (editFormData.firstName.trim() !== selectedEmployee.firstName) patch.firstName = editFormData.firstName.trim();
+    if (editFormData.lastName.trim() !== selectedEmployee.lastName) patch.lastName = editFormData.lastName.trim();
+    if (normalizedEmail !== selectedEmployee.email.toLowerCase()) patch.email = normalizedEmail;
+    if (editFormData.department !== selectedEmployee.department) patch.department = editFormData.department;
+    if (editFormData.role !== selectedEmployee.role) patch.role = editFormData.role;
+    if (editFormData.joiningDate !== selectedEmployee.joiningDate) patch.joiningDate = editFormData.joiningDate;
+    if ((editFormData.projectId || '') !== (selectedEmployee.projectId || '')) patch.projectId = editFormData.projectId;
+    if (editFormData.isActive !== selectedEmployee.isActive) patch.isActive = editFormData.isActive;
+
+    setEditSubmitting(true);
+    setEditFormError('');
+
+    try {
+      await api.updateEmployee(selectedEmployee.id, patch);
+      closeEditEmployee();
+      setToastMessage({ type: 'success', text: 'Employee updated successfully.' });
+      fetchEmployees();
+      onRefreshStats();
+    } catch (err: any) {
+      const message = err.message || 'Failed to update employee.';
+      if (message.toLowerCase().includes('duplicate email violation')) {
+        setEditFieldErrors({ email: message });
+      }
+      setEditFormError(message);
+      setToastMessage({ type: 'error', text: message });
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   // Handle CSV Export
   const handleExportCSV = () => {
     const headers = 'Employee Code,First Name,Last Name,Email,Department,Role,Joining Date,Project,Seat Number,Floor,Zone\n';
@@ -200,6 +306,18 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
 
   return (
     <div className="p-6 md:p-8 space-y-6">
+      {toastMessage && (
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-sm rounded-xl border px-4 py-3 shadow-lg backdrop-blur-xs ${
+            toastMessage.type === 'success'
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              : 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+          }`}
+        >
+          <div className="font-semibold text-xs">{toastMessage.text}</div>
+        </div>
+      )}
+
       {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -387,6 +505,13 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                       {emp.joiningDate}
                     </td>
                     <td className="p-4 text-right">
+                      <button
+                        onClick={() => openEditEmployee(emp)}
+                        className="p-1.5 mr-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                        title="Edit Employee"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleDeleteEmployee(emp)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
@@ -581,6 +706,180 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                   className="px-5 py-2 rounded-xl text-white font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20"
                 >
                   {submitting ? 'Creating...' : 'Create Employee'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Employee Modal */}
+      {selectedEmployee && editFormData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-indigo-500" /> Edit Employee Record
+              </h3>
+              <button onClick={closeEditEmployee} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 text-xs">
+              {editFormError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {editFormError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee ID</label>
+                  <input
+                    type="text"
+                    value={selectedEmployee.id}
+                    disabled
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee Code</label>
+                  <input
+                    type="text"
+                    value={selectedEmployee.empCode}
+                    disabled
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee Name *</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="text"
+                      value={editFormData.firstName}
+                      onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                    {editFieldErrors.firstName && <div className="mt-1 text-[11px] text-rose-500">{editFieldErrors.firstName}</div>}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={editFormData.lastName}
+                      onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                    {editFieldErrors.lastName && <div className="mt-1 text-[11px] text-rose-500">{editFieldErrors.lastName}</div>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                  {editFieldErrors.email && <div className="mt-1 text-[11px] text-rose-500">{editFieldErrors.email}</div>}
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employment Status *</label>
+                  <select
+                    value={editFormData.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    onChange={e => setEditFormData({ ...editFormData, isActive: e.target.value === 'ACTIVE' })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
+                  <select
+                    value={editFormData.department}
+                    onChange={e => setEditFormData({ ...editFormData, department: e.target.value as DepartmentName })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  >
+                    <option value="Engineering">Engineering</option>
+                    <option value="Product">Product</option>
+                    <option value="Design">Design</option>
+                    <option value="Data & AI">Data & AI</option>
+                    <option value="Cloud & DevOps">Cloud & DevOps</option>
+                    <option value="Quality Assurance">Quality Assurance</option>
+                    <option value="Cyber Security">Cyber Security</option>
+                  </select>
+                  {editFieldErrors.department && <div className="mt-1 text-[11px] text-rose-500">{editFieldErrors.department}</div>}
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Role *</label>
+                  <select
+                    value={editFormData.role}
+                    onChange={e => setEditFormData({ ...editFormData, role: e.target.value as EmployeeRole })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  >
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Senior Engineer">Senior Engineer</option>
+                    <option value="Staff Engineer">Staff Engineer</option>
+                    <option value="Product Manager">Product Manager</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="Data Scientist">Data Scientist</option>
+                    <option value="DevOps Lead">DevOps Lead</option>
+                  </select>
+                  {editFieldErrors.role && <div className="mt-1 text-[11px] text-rose-500">{editFieldErrors.role}</div>}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Project Assignment</label>
+                <select
+                  value={editFormData.projectId}
+                  onChange={e => setEditFormData({ ...editFormData, projectId: e.target.value })}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                >
+                  <option value="">None / Unassigned</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Joining Date *</label>
+                  <input
+                    type="date"
+                    value={editFormData.joiningDate}
+                    onChange={e => setEditFormData({ ...editFormData, joiningDate: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                  {editFieldErrors.joiningDate && <div className="mt-1 text-[11px] text-rose-500">{editFieldErrors.joiningDate}</div>}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeEditEmployee}
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="px-5 py-2 rounded-xl text-white font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 disabled:opacity-60 flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> {editSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

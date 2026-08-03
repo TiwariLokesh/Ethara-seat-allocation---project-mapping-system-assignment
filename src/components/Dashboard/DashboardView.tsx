@@ -97,14 +97,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {stats.totalEmployees.toLocaleString()}
+              {(stats.totalEmployees ?? 0).toLocaleString()}
             </span>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
               <TrendingUp className="w-3.5 h-3.5" /> +12% YoY
             </span>
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span className="text-amber-500 font-semibold">{stats.pendingAllocation}</span> pending seat allocation
+            <span className="text-amber-500 font-semibold">{stats.pendingAllocation ?? 0}</span> pending seat allocation
           </div>
         </div>
 
@@ -120,7 +120,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {stats.totalSeats.toLocaleString()}
+              {(stats.totalSeats ?? 0).toLocaleString()}
             </span>
             <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               5 Floors • 10 Zones
@@ -128,7 +128,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>Occupancy Rate:</span>
-            <span className="font-bold text-slate-900 dark:text-white">{stats.overallOccupancyRate}%</span>
+            <span className="font-bold text-slate-900 dark:text-white">{stats.overallOccupancyRate ?? 0}%</span>
           </div>
         </div>
 
@@ -144,16 +144,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {stats.occupiedSeats.toLocaleString()}
+              {(stats.occupiedSeats ?? 0).toLocaleString()}
             </span>
             <span className="text-xs font-semibold text-slate-400">
-              {((stats.occupiedSeats / stats.totalSeats) * 100).toFixed(1)}% of total
+              {stats.totalSeats && stats.totalSeats > 0 ? ((stats.occupiedSeats / stats.totalSeats) * 100).toFixed(1) : '0.0'}% of total
             </span>
           </div>
           <div className="mt-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
               className="bg-purple-600 h-1.5 rounded-full"
-              style={{ width: `${stats.overallOccupancyRate}%` }}
+              style={{ width: `${stats.overallOccupancyRate ?? 0}%` }}
             ></div>
           </div>
         </div>
@@ -170,15 +170,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {stats.availableSeats.toLocaleString()}
+              {(stats.availableSeats ?? 0).toLocaleString()}
             </span>
             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
               Ready to allocate
             </span>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Reserved: {stats.reservedSeats}</span>
-            <span>Maint: {stats.maintenanceSeats}</span>
+            <span>Reserved: {stats.reservedSeats ?? 0}</span>
+            <span>Maint: {stats.maintenanceSeats ?? 0}</span>
           </div>
         </div>
       </div>
@@ -199,7 +199,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.floorOccupancy}>
+              <BarChart data={stats.floorOccupancy ?? []}>
                 <XAxis dataKey="floor" tickFormatter={f => `Floor ${f}`} stroke="#94a3b8" fontSize={12} />
                 <YAxis stroke="#94a3b8" fontSize={12} />
                 <Tooltip
@@ -226,7 +226,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.projectUtilization.slice(0, 7)} layout="vertical">
+              <BarChart data={(stats.projectUtilization ?? []).slice(0, 7)} layout="vertical">
                 <XAxis type="number" stroke="#94a3b8" fontSize={12} domain={[0, 100]} unit="%" />
                 <YAxis dataKey="projectName" type="category" stroke="#94a3b8" fontSize={11} width={130} />
                 <Tooltip
@@ -274,7 +274,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <tr key={floorNum} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                   <td className="p-3 font-bold text-slate-900 dark:text-white">Floor {floorNum}</td>
                   {['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E', 'Zone F', 'Zone G', 'Zone H', 'Zone I', 'Zone J'].map(zoneName => {
-                    const cell = stats.heatMapData.find(h => h.floor === floorNum && h.zone === zoneName);
+                    const cell = (stats.heatMapData ?? []).find(h => h.floor === floorNum && h.zone === zoneName);
                     const density = cell ? cell.density : 0;
                     
                     let bgClass = 'bg-slate-100 dark:bg-slate-800/50 text-slate-500';
@@ -313,7 +313,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={stats.departmentDistribution}
+                  data={stats.departmentDistribution ?? []}
                   dataKey="employeeCount"
                   nameKey="department"
                   cx="50%"
@@ -321,7 +321,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   outerRadius={80}
                   label={({ department, percent }) => `${department} (${(percent * 100).toFixed(0)}%)`}
                 >
-                  {stats.departmentDistribution.map((entry, index) => (
+                  {(stats.departmentDistribution ?? []).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -338,7 +338,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.monthlyJoiners}>
+              <AreaChart data={stats.monthlyJoiners ?? []}>
                 <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} />
                 <YAxis stroke="#94a3b8" fontSize={11} />
                 <Tooltip />

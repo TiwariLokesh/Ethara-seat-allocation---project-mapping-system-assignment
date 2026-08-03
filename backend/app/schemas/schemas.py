@@ -1,28 +1,39 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 class EmployeeBase(BaseModel):
-    emp_code: str = Field(..., example="EMP-1001")
-    first_name: str = Field(..., example="Amit")
-    last_name: str = Field(..., example="Sharma")
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
+
+    emp_code: str = Field(..., alias="empCode", example="EMP-1001")
+    first_name: str = Field(..., alias="firstName", example="Amit")
+    last_name: str = Field(..., alias="lastName", example="Sharma")
     email: EmailStr = Field(..., example="amit.sharma@ethara.com")
     department: str = Field(..., example="Engineering")
     role: str = Field(..., example="Senior Engineer")
-    joining_date: str = Field(..., example="2025-01-15")
-    project_id: Optional[str] = None
+    joining_date: str = Field(..., alias="joiningDate", example="2025-01-15")
+    project_id: Optional[str] = Field(default=None, alias="projectId")
 
 class EmployeeCreate(EmployeeBase):
     pass
 
 class EmployeeUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
+
+    first_name: Optional[str] = Field(default=None, alias="firstName")
+    last_name: Optional[str] = Field(default=None, alias="lastName")
+    email: Optional[EmailStr] = None
     department: Optional[str] = None
     role: Optional[str] = None
-    project_id: Optional[str] = None
-    seat_id: Optional[str] = None
-    is_active: Optional[bool] = None
+    joining_date: Optional[str] = Field(default=None, alias="joiningDate")
+    project_id: Optional[str] = Field(default=None, alias="projectId")
+    seat_id: Optional[str] = Field(default=None, alias="seatId")
+    is_active: Optional[bool] = Field(default=None, alias="isActive")
 
 class EmployeeResponse(EmployeeBase):
     id: str
@@ -80,15 +91,24 @@ class SeatResponse(BaseModel):
         from_attributes = True
 
 class SeatAllocationRequest(BaseModel):
-    employee_id: str
-    seat_id: str
+
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
+
+    employee_id: str = Field(alias="employeeId")
+
     notes: Optional[str] = None
 
 class SeatRecommendationRequest(BaseModel):
-    employee_id: str
-    project_id: Optional[str] = None
-    preferred_floor: Optional[int] = None
-    preferred_zone: Optional[str] = None
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
+
+    employee_id: str = Field(alias="employeeId")
+    project_id: Optional[str] = Field(default=None, alias="projectId")
+    preferred_floor: Optional[int] = Field(default=None, alias="preferredFloor")
+    preferred_zone: Optional[str] = Field(default=None, alias="preferredZone")
 
 class AIQueryRequest(BaseModel):
     query: str
@@ -102,18 +122,19 @@ class AIQueryResponse(BaseModel):
     suggested_followups: Optional[List[str]] = None
 
 class DashboardStatsResponse(BaseModel):
-    total_employees: int
-    total_seats: int
-    occupied_seats: int
-    available_seats: int
-    reserved_seats: int
-    maintenance_seats: int
-    released_seats: int
-    pending_allocation: int
-    overall_occupancy_rate: float
-    project_utilization: List[Dict[str, Any]]
-    floor_occupancy: List[Dict[str, Any]]
-    department_distribution: List[Dict[str, Any]]
-    monthly_joiners: List[Dict[str, Any]]
-    recent_allocations: List[Dict[str, Any]]
-    heat_map_data: List[Dict[str, Any]]
+    totalEmployees: int
+    totalSeats: int
+    occupiedSeats: int
+    availableSeats: int
+    reservedSeats: int
+    maintenanceSeats: int
+    releasedSeats: int
+    pendingAllocation: int
+    overallOccupancyRate: float
+    projectUtilization: List[Dict[str, Any]]
+    floorOccupancy: List[Dict[str, Any]]
+    departmentDistribution: List[Dict[str, Any]]
+    monthlyJoiners: List[Dict[str, Any]]
+    recentAllocations: List[Dict[str, Any]]
+    heatMapData: List[Dict[str, Any]]
+

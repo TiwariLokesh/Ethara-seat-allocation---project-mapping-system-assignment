@@ -1,8 +1,29 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+# Python
+backend/.venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite
+*.db
+*.sqlite3
+
+# Environment
+.env
+.env.*
+
+# Logs
 *.log
-.env*
-!.env.example
+
+# Node
+node_modules/
+dist/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

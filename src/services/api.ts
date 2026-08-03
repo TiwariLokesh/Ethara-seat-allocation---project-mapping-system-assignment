@@ -17,6 +17,18 @@ import {
 
 const API_BASE = '/api/v1';
 
+function snakeToCamel(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(snakeToCamel);
+  if (typeof obj !== 'object') return obj;
+  const result: any = {};
+  for (const key of Object.keys(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    result[camelKey] = snakeToCamel(obj[key]);
+  }
+  return result;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let errorMsg = `HTTP Error ${res.status}`;
@@ -28,7 +40,8 @@ async function handleResponse<T>(res: Response): Promise<T> {
     }
     throw new Error(errorMsg);
   }
-  return res.json() as Promise<T>;
+  const data = await res.json();
+  return snakeToCamel(data) as T;
 }
 
 export const api = {
@@ -67,6 +80,28 @@ export const api = {
   createEmployee: async (data: NewJoinerFormData): Promise<Employee> => {
     const res = await fetch(`${API_BASE}/employees`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return handleResponse<Employee>(res);
+  },
+
+  // Update Employee
+  updateEmployee: async (
+    id: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      department?: string;
+      role?: string;
+      joiningDate?: string;
+      projectId?: string;
+      isActive?: boolean;
+    }
+  ): Promise<Employee> => {
+    const res = await fetch(`${API_BASE}/employees/${id}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
