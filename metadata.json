@@ -1,0 +1,6 @@
+{
+  "name": "Ethara Seat Allocation & Project Mapping System",
+  "description": "Enterprise seat allocation, project mapping, smart allocation engine, analytics dashboard, and AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
