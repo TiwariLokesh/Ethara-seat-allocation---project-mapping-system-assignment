@@ -36,7 +36,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   if (!isOpen) return null;
 
   const quickPrompts = [
-    'Where is Amit Sharma seated?',
+    'Where is User1 Test seated?',
     'Show available seats on Floor 3 Zone A',
     'Which project has highest seat utilization?',
     'Find 5 seats near the Mobile team'

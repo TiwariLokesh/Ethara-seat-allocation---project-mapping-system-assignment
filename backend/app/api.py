@@ -30,7 +30,7 @@ try:
 
         print("Creating model...")
 
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-3.5-flash")
 
         print("Model created successfully")
 
@@ -415,10 +415,32 @@ async def ai_query(req: AIQueryRequest, db: AsyncSession = Depends(get_db)):
     query = req.query.strip()
 
     # Fetch some database context
+    query_words = [w.strip(",?.!").lower() for w in query.split() if len(w.strip(",?.!")) > 2]
+
+    matched_employees = []
+    if query_words:
+        name_filters = []
+        for word in query_words:
+            name_filters.append(func.lower(Employee.first_name).like(f"%{word}%"))
+            name_filters.append(func.lower(Employee.last_name).like(f"%{word}%"))
+            name_filters.append(func.lower(Employee.emp_code).like(f"%{word}%"))
+
+        matched_res = await db.execute(
+            select(Employee).where(Employee.is_deleted == False, or_(*name_filters)).limit(20)
+        )
+        matched_employees = list(matched_res.scalars().all())
+
     emp_res = await db.execute(
         select(Employee).where(Employee.is_deleted == False).limit(50)
     )
-    employees = emp_res.scalars().all()
+    general_employees = list(emp_res.scalars().all())
+
+    seen_ids = set()
+    employees = []
+    for e in matched_employees + general_employees:
+        if e.id not in seen_ids:
+            employees.append(e)
+            seen_ids.add(e.id)
 
     seat_res = await db.execute(
         select(Seat).limit(50)
