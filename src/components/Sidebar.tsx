@@ -33,7 +33,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'employees', label: 'Employees', icon: Users, badge: '5,000' },
     { id: 'projects', label: 'Projects', icon: Briefcase, badge: '11' },
     { id: 'seats', label: 'Seat Map Grid', icon: Grid3X3, badge: '5,500' },
-    { id: 'new-joiner', label: 'New Joiner Wizard', icon: UserPlus, badge: pendingCount > 0 ? `${pendingCount} Pending` : undefined, badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
     { id: 'ai-assistant', label: 'AI Assistant', icon: Bot, highlight: true },
     { id: 'audit-logs', label: 'Audit Logs', icon: History },
   ];

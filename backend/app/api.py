@@ -747,7 +747,20 @@ async def seat_status(seat_id: str, req: dict, db: AsyncSession = Depends(get_db
 @router.get("/audit-logs")
 async def get_audit_logs(limit: int = 50, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(AuditLog).order_by(desc(AuditLog.timestamp)).limit(limit))
-    return res.scalars().all()
+    logs = res.scalars().all()
+    return [
+        {
+            "id": log.id,
+            "timestamp": log.timestamp.isoformat(),
+            "action": log.action,
+            "performedBy": log.user_name,
+            "targetType": log.target_type,
+            "targetId": log.target_id,
+            "targetName": log.target_name,
+            "details": log.details,
+        }
+        for log in logs
+    ]
 
 
 @router.post("/seats/recommend")

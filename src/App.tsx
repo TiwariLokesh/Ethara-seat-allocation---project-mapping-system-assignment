@@ -6,7 +6,6 @@ import { DashboardView } from './components/Dashboard/DashboardView';
 import { EmployeeListView } from './components/Employees/EmployeeListView';
 import { ProjectListView } from './components/Projects/ProjectListView';
 import { SeatMapView } from './components/Seats/SeatMapView';
-import { NewJoinerWizard } from './components/Allocation/NewJoinerWizard';
 import { AIAssistantDrawer } from './components/AIAssistant/AIAssistantDrawer';
 import { AuditLogView } from './components/Audit/AuditLogView';
 import { Employee, Project, Seat, DashboardStats } from './types';
@@ -72,7 +71,7 @@ export function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex font-sans antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-300`}>
+    <div className={`h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex font-sans antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-300`}>
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -129,14 +128,6 @@ export function App() {
             />
           )}
 
-          {activeTab === 'new-joiner' && (
-            <NewJoinerWizard
-              projects={projects}
-              onCompleteOnboarding={() => {
-                loadData();
-              }}
-            />
-          )}
 
           {activeTab === 'ai-assistant' && (
             <div className="p-8 text-center">
