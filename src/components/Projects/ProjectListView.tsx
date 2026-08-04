@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Briefcase, Plus, Users, CheckCircle, BarChart2, Layers, AlertCircle, X } from 'lucide-react';
 import { Project, DepartmentName } from '../../types';
 import { api } from '../../services/api';
@@ -28,6 +28,16 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // NEW: toast state, same pattern as EmployeeListView
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // NEW: auto-dismiss the toast after 3 seconds
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timer = window.setTimeout(() => setToastMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +50,9 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
     try {
       await api.createProject(formData);
       setIsAddModalOpen(false);
+      // NEW: success toast so the user gets immediate feedback without
+      // needing to scroll down to see the new card.
+      setToastMessage({ type: 'success', text: `Project "${formData.name}" created successfully.` });
       setFormData({
         name: '',
         code: '',
@@ -53,7 +66,10 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
       });
       onRefreshProjects();
     } catch (err: any) {
-      setError(err.message || 'Failed to create project.');
+      const message = err.message || 'Failed to create project.';
+      setError(message);
+      // NEW: error toast alongside the existing inline modal error
+      setToastMessage({ type: 'error', text: message });
     } finally {
       setSubmitting(false);
     }
@@ -61,6 +77,19 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
 
   return (
     <div className="p-6 md:p-8 space-y-6">
+      {/* NEW: Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-sm rounded-xl border px-4 py-3 shadow-lg backdrop-blur-xs ${
+            toastMessage.type === 'success'
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              : 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+          }`}
+        >
+          <div className="font-semibold text-xs">{toastMessage.text}</div>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

@@ -30,6 +30,9 @@ export function App() {
   // Cross-view selection handlers
   const [preselectedSeat, setPreselectedSeat] = useState<Seat | null>(null);
   const [preselectedEmployee, setPreselectedEmployee] = useState<Employee | null>(null);
+  // NEW: holds the project id chosen from the Projects page so the
+  // Employees page can pre-filter its table to just that project.
+  const [employeeProjectFilter, setEmployeeProjectFilter] = useState<string>('ALL');
 
   // Fetch initial data
   const loadData = async () => {
@@ -105,6 +108,7 @@ export function App() {
               projects={projects}
               onSelectEmployeeForSeat={handleSelectEmployeeForSeat}
               onRefreshStats={loadData}
+              initialProjectFilter={employeeProjectFilter}
             />
           )}
 
@@ -113,6 +117,9 @@ export function App() {
               projects={projects}
               onRefreshProjects={loadData}
               onNavigateToEmployeesWithProjectFilter={projectId => {
+                // NEW: store the clicked project's id so EmployeeListView
+                // can pre-select it in its Project filter dropdown.
+                setEmployeeProjectFilter(projectId);
                 setActiveTab('employees');
               }}
             />

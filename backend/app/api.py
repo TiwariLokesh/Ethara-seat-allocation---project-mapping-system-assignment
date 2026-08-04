@@ -334,6 +334,52 @@ async def get_projects(db: AsyncSession = Depends(get_db)):
         ))
     return enriched
 
+@router.post("/projects", response_model=ProjectResponse)
+async def create_project(project: ProjectCreate, db: AsyncSession = Depends(get_db)):
+    # Duplicate project code check
+    res = await db.execute(select(Project).where(Project.code == project.code))
+    if res.scalar():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Duplicate Project Code: {project.code}"
+        )
+
+    new_project = Project(
+        id=f"proj-{int(datetime.now().timestamp()*1000)}",
+        name=project.name,
+        code=project.code,
+        description=project.description,
+        manager_name=project.manager_name,
+        manager_email=project.manager_email,
+        department=project.department,
+        capacity=project.capacity,
+        status=project.status,
+        preferred_floor=project.preferred_floor,
+        preferred_zone=project.preferred_zone,
+    )
+
+    db.add(new_project)
+
+    audit = AuditLog(
+        id=f"log-{int(datetime.now().timestamp()*1000)}",
+        user_id="usr-admin",
+        user_name="HR Administrator",
+        action="PROJECT_CREATED",
+        target_type="PROJECT",
+        target_id=new_project.id,
+        target_name=new_project.name,
+        details=f"Created project {new_project.code}"
+    )
+    db.add(audit)
+
+    await db.commit()
+    await db.refresh(new_project)
+
+    return ProjectResponse(
+        **new_project.__dict__,
+        assigned_count=0,
+        seat_utilization=0.0
+    )
 
 # ---------------------------------------------------------------------------
 # Seats
@@ -727,7 +773,118 @@ async def release_seat(seat_id: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"message": f"Seat {seat.seat_number} released."}
 
+@router.post("/seats/{seat_id}/transfer")
+async def transfer_seat(seat_id: str, req: dict, db: AsyncSession = Depends(get_db)):
+    target_seat_id = req.get("targetSeatId")
+    if not target_seat_id:
+        raise HTTPException(status_code=400, detail="targetSeatId is required")
 
+    source_res = await db.execute(select(Seat).where(Seat.id == seat_id))
+    source_seat = source_res.scalar()
+    if not source_seat:
+        raise HTTPException(status_code=404, detail="Source seat not found")
+
+    target_res = await db.execute(select(Seat).where(Seat.id == target_seat_id))
+    target_seat = target_res.scalar()
+    if not target_seat:
+        raise HTTPException(status_code=404, detail="Target seat not found")
+
+    if target_seat.status not in ("AVAILABLE", "RELEASED"):
+        raise HTTPException(status_code=409, detail="Target seat is not available")
+
+    if not source_seat.occupant_id:
+        raise HTTPException(status_code=409, detail="Source seat has no occupant to transfer")
+
+    emp_res = await db.execute(select(Employee).where(Employee.id == source_seat.occupant_id))
+    emp = emp_res.scalar()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Occupant employee not found")
+
+    # Release the source seat
+    source_seat.status = 'RELEASED'
+    source_seat.occupant_id = None
+    source_seat.project_id = None
+
+    # Occupy the target seat
+    target_seat.status = 'OCCUPIED'
+    target_seat.occupant_id = emp.id
+    target_seat.project_id = emp.project_id
+
+    emp.seat_id = target_seat.id
+
+    alloc = SeatAllocation(
+        id=f"alloc-{int(datetime.now().timestamp()*1000)}",
+        employee_id=emp.id,
+        seat_id=target_seat.id,
+        project_id=emp.project_id or "",
+        notes=f"Transferred from {source_seat.seat_number}"
+    )
+    db.add(alloc)
+
+    audit = AuditLog(
+        id=f"log-{int(datetime.now().timestamp()*1000)}",
+        user_id="usr-admin",
+        user_name="HR Administrator",
+        action="SEAT_TRANSFERRED",
+        target_type="SEAT",
+        target_id=target_seat.id,
+        target_name=target_seat.seat_number,
+        details=f"Transferred {emp.emp_code} from {source_seat.seat_number} to {target_seat.seat_number}"
+    )
+    db.add(audit)
+
+    await db.commit()
+    await db.refresh(source_seat)
+    await db.refresh(target_seat)
+    await db.refresh(emp)
+
+    return {
+        "message": f"{emp.emp_code} transferred from {source_seat.seat_number} to {target_seat.seat_number}",
+        "source_seat": {
+            "id": source_seat.id,
+            "seat_number": source_seat.seat_number,
+            "floor": source_seat.floor,
+            "zone": source_seat.zone,
+            "bay": source_seat.bay,
+            "status": source_seat.status,
+            "occupant_id": source_seat.occupant_id,
+            "occupant_name": None,
+            "occupant_emp_code": None,
+            "project_id": source_seat.project_id,
+            "project_name": None,
+            "is_active": source_seat.is_active
+        },
+        "target_seat": {
+            "id": target_seat.id,
+            "seat_number": target_seat.seat_number,
+            "floor": target_seat.floor,
+            "zone": target_seat.zone,
+            "bay": target_seat.bay,
+            "status": target_seat.status,
+            "occupant_id": target_seat.occupant_id,
+            "occupant_name": f"{emp.first_name} {emp.last_name}",
+            "occupant_emp_code": emp.emp_code,
+            "project_id": target_seat.project_id,
+            "project_name": None,
+            "is_active": target_seat.is_active
+        },
+        "employee": {
+            "id": emp.id,
+            "emp_code": emp.emp_code,
+            "first_name": emp.first_name,
+            "last_name": emp.last_name,
+            "email": emp.email,
+            "department": emp.department,
+            "role": emp.role,
+            "joining_date": emp.joining_date,
+            "project_id": emp.project_id,
+            "seat_id": emp.seat_id,
+            "is_active": emp.is_active,
+            "is_deleted": emp.is_deleted
+        }
+    }
+
+    
 @router.post("/seats/{seat_id}/status")
 async def seat_status(seat_id: str, req: dict, db: AsyncSession = Depends(get_db)):
     s_res = await db.execute(select(Seat).where(Seat.id == seat_id))

@@ -27,12 +27,16 @@ interface EmployeeListViewProps {
   projects: Project[];
   onSelectEmployeeForSeat: (emp: Employee) => void;
   onRefreshStats: () => void;
+  // NEW: optional project id passed from other views (e.g. clicking
+  // "View Assigned Employees" on a Project card) to pre-filter the table.
+  initialProjectFilter?: string;
 }
 
 export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
   projects,
   onSelectEmployeeForSeat,
-  onRefreshStats
+  onRefreshStats,
+  initialProjectFilter
 }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,7 +48,8 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
   // Filters
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState('ALL');
-  const [project, setProject] = useState('ALL');
+  // NEW: initialize from the incoming prop instead of always 'ALL'
+  const [project, setProject] = useState(initialProjectFilter || 'ALL');
   const [status, setStatus] = useState('');
   const [sortBy, setSortBy] = useState('empCode');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -92,6 +97,17 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
     const timer = window.setTimeout(() => setToastMessage(null), 3000);
     return () => window.clearTimeout(timer);
   }, [toastMessage]);
+
+  // NEW: whenever the incoming initialProjectFilter changes (e.g. user
+  // clicks "View Assigned Employees" on a different project while this
+  // view is already mounted), sync it into the local project filter state
+  // and jump back to page 1.
+  useEffect(() => {
+    if (initialProjectFilter) {
+      setProject(initialProjectFilter);
+      setPage(1);
+    }
+  }, [initialProjectFilter]);
 
   // Fetch Employees
   const fetchEmployees = async () => {

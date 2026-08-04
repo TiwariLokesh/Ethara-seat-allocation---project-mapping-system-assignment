@@ -50,16 +50,21 @@ class EmployeeResponse(EmployeeBase):
         from_attributes = True
 
 class ProjectBase(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
+
     name: str = Field(..., example="Core Banking Modernization")
     code: str = Field(..., example="PRJ-FIN-01")
     description: Optional[str] = None
-    manager_name: str = Field(..., example="Rajesh Sharma")
-    manager_email: EmailStr = Field(..., example="rajesh.sharma@ethara.com")
-    department: str = Field(..., example="Engineering")
+    manager_name: str = Field(..., alias="managerName", example="Rajesh Sharma")
+    manager_email: EmailStr = Field(..., alias="managerEmail", example="rajesh.sharma@ethara.com")
+    department: str = Field(default="Engineering", example="Engineering")
     capacity: int = Field(..., example=650)
     status: str = Field(default="Active")
-    preferred_floor: int = Field(default=1)
-    preferred_zone: str = Field(default="Zone A")
+    preferred_floor: int = Field(default=1, alias="preferredFloor")
+    preferred_zone: str = Field(default="Zone A", alias="preferredZone")
 
 class ProjectCreate(ProjectBase):
     pass
