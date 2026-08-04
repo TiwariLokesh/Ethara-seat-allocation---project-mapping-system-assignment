@@ -30,7 +30,7 @@ try:
 
         print("Creating model...")
 
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         print("Model created successfully")
 
@@ -357,7 +357,10 @@ async def get_seats(
     if zone and zone != "ALL":
         filters.append(Seat.zone == zone)
     if status and status != "ALL":
-        filters.append(Seat.status == status)
+        if status == "AVAILABLE":
+            filters.append(Seat.status.in_(["AVAILABLE", "RELEASED"]))
+        else:
+            filters.append(Seat.status == status)
     if search:
         search_term = f"%{search.lower()}%"
         filters.append(func.lower(Seat.seat_number).like(search_term))

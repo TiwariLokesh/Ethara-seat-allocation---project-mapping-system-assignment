@@ -73,12 +73,18 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
   }, [selectedFloor, selectedZone, statusFilter, search]);
 
   useEffect(() => {
-    if (preselectedSeat) {
-      setSelectedFloor(preselectedSeat.floor);
-      setSelectedZone(preselectedSeat.zone);
-      setActiveSeat(preselectedSeat);
-    }
-  }, [preselectedSeat]);
+  if (preselectedSeat) {
+    setSelectedFloor(preselectedSeat.floor);
+    setSelectedZone(preselectedSeat.zone);
+    setActiveSeat(preselectedSeat);
+  }
+
+ 
+  if (preselectedEmployee) {
+    setSelectedEmpForAllocation(preselectedEmployee.id);
+    setDrawerMode('ALLOCATE');
+  }
+}, [preselectedSeat, preselectedEmployee]); 
 
   // Handle Allocate Seat
   const handleAllocateSeat = async () => {
