@@ -6,8 +6,8 @@ import logging
 
 from app.config import settings
 
-# Configure structured logging
-logging.basicConfig(level=logging.INFO)
+# Configure structured logging  
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("ethara")
 
 app = FastAPI(
@@ -65,38 +65,41 @@ import asyncio
 
 @app.on_event("startup")
 async def startup_event():
+    print("STEP 1 - Startup started")
+
     async with engine.begin() as conn:
+        print("STEP 2 - Database connected")
+
         await conn.run_sync(Base.metadata.create_all)
-    
+
+        print("STEP 3 - Tables created")
+
     from app.database import AsyncSessionLocal
     from sqlalchemy import select
     from app.models.models import Employee, Seat, Project
-    
+
+    print("STEP 4 - Checking seed data")
+
     async with AsyncSessionLocal() as session:
         res = await session.execute(select(Employee).limit(1))
         has_employees = res.scalar_one_or_none() is not None
+
         res = await session.execute(select(Seat).limit(1))
         has_seats = res.scalar_one_or_none() is not None
+
         res = await session.execute(select(Project).limit(1))
         has_projects = res.scalar_one_or_none() is not None
-        
-        if not (has_employees and has_seats and has_projects):
-            import sys
-            import os
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            if backend_dir not in sys.path:
-                sys.path.insert(0, backend_dir)
-            try:
-                from seed import seed_db
-                await seed_db()
-            except ImportError as e:
-                print(f"Seed import error: {e}")
-                import traceback
-                traceback.print_exc()
-            except Exception as e:
-                print(f"Seed run error: {e}")
-                import traceback
-                traceback.print_exc()
 
+        print(has_employees, has_seats, has_projects)
+
+        if not (has_employees and has_seats and has_projects):
+            print("STEP 5 - Running seed")
+
+            from seed import seed_db
+            await seed_db()
+
+            print("STEP 6 - Seed complete")
+
+    print("STEP 7 - Startup complete")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

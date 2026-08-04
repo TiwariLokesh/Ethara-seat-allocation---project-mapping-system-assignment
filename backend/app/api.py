@@ -1,10 +1,11 @@
+import os
 import math
 import random
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, desc, or_
+from sqlalchemy import select, func, desc, or_, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -19,16 +20,47 @@ from app.config import settings
 
 try:
     import google.generativeai as genai
+
+    print("google-generativeai imported successfully")
+
     if settings.GEMINI_API_KEY:
+        print("Configuring Gemini...")
+
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        print("Creating model...")
+
+        model = genai.GenerativeModel("gemini-2.0-flash")
+
+        print("Model created successfully")
+
     else:
+        print("No API Key Found")
         model = None
-except ImportError:
+
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    print("Gemini initialization failed:", e)
     model = None
 
 router = APIRouter()
 
+
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
+# Previously this endpoint issued:
+#   - 1 query per project              (project_utilization loop)
+#   - 1 query per project (again)      (project_utilization loop)
+#   - 1 query per floor (x5)           (floor_occupancy loop)
+#   - 1 query per allocation, x2       (recent_allocations loop, up to 20 queries)
+#   - 1 query per floor per zone (5x10=50) (heat_map_data loop)
+# = 100+ queries for a typical dataset.
+#
+# It now issues a fixed, small number of queries (~9) regardless of the
+# number of projects/floors/zones/allocations, using GROUP BY / conditional
+# aggregation and JOINs instead of per-row round trips.
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(func.count(Employee.id)).where(Employee.is_active == True, Employee.is_deleted == False))
@@ -50,27 +82,51 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
 
     overall_occupancy_rate = round((occupied_seats / total_seats * 100), 1) if total_seats > 0 else 0.0
 
+    # --- project utilization: single grouped query instead of 2 queries/project ---
+    active_emp_cond = and_(Employee.is_active == True, Employee.is_deleted == False)
+    assigned_expr = func.sum(case((active_emp_cond, 1), else_=0))
+    allocated_expr = func.sum(case((and_(active_emp_cond, Employee.seat_id != None), 1), else_=0))
+
+    proj_res = await db.execute(
+        select(
+            Project.id,
+            Project.name,
+            Project.capacity,
+            assigned_expr,
+            allocated_expr,
+        )
+        .select_from(Project)
+        .outerjoin(Employee, Employee.project_id == Project.id)
+        .group_by(Project.id, Project.name, Project.capacity)
+    )
+
     project_utilization = []
-    projects = await db.execute(select(Project))
-    for project in projects.scalars().all():
-        res = await db.execute(select(func.count(Employee.id)).where(Employee.project_id == project.id, Employee.is_active == True, Employee.is_deleted == False))
-        assigned = res.scalar() or 0
-        res = await db.execute(select(func.count(Employee.id)).where(Employee.project_id == project.id, Employee.seat_id != None, Employee.is_active == True, Employee.is_deleted == False))
-        allocated = res.scalar() or 0
-        utilization_rate = round((allocated / project.capacity * 100), 1) if project.capacity > 0 else 0.0
+    for project_id, project_name, capacity, assigned, allocated in proj_res.fetchall():
+        assigned = assigned or 0
+        allocated = allocated or 0
+        utilization_rate = round((allocated / capacity * 100), 1) if capacity and capacity > 0 else 0.0
         project_utilization.append({
-            "projectId": project.id,
-            "projectName": project.name,
-            "capacity": project.capacity,
+            "projectId": project_id,
+            "projectName": project_name,
+            "capacity": capacity,
             "assigned": assigned,
             "allocatedSeats": allocated,
             "utilizationRate": utilization_rate
         })
 
+    # --- floor occupancy: single grouped query instead of 1 query/floor ---
+    floor_res = await db.execute(
+        select(Seat.floor, Seat.status, func.count(Seat.id))
+        .where(Seat.floor.in_(range(1, 6)))
+        .group_by(Seat.floor, Seat.status)
+    )
+    floor_status_map = {}
+    for floor, status, cnt in floor_res.fetchall():
+        floor_status_map.setdefault(floor, {})[status] = cnt
+
     floor_occupancy = []
     for floor in range(1, 6):
-        res = await db.execute(select(Seat.status, func.count(Seat.id)).where(Seat.floor == floor).group_by(Seat.status))
-        fc = {row[0]: row[1] for row in res.fetchall()}
+        fc = floor_status_map.get(floor, {})
         tot = sum(fc.values())
         occ = fc.get("OCCUPIED", 0)
         floor_occupancy.append({
@@ -90,14 +146,16 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
 
     monthly_joiners = [{"month": "2025-01", "count": 50}, {"month": "2025-02", "count": 100}]
 
-    res = await db.execute(select(SeatAllocation).order_by(desc(SeatAllocation.allocated_at)).limit(10))
-    recent_allocations_raw = res.scalars().all()
+    # --- recent allocations: single joined query instead of 2 queries/allocation ---
+    alloc_res = await db.execute(
+        select(SeatAllocation, Employee, Seat)
+        .join(Employee, SeatAllocation.employee_id == Employee.id)
+        .join(Seat, SeatAllocation.seat_id == Seat.id)
+        .order_by(desc(SeatAllocation.allocated_at))
+        .limit(10)
+    )
     recent_allocations = []
-    for alloc in recent_allocations_raw:
-        emp = await db.execute(select(Employee).where(Employee.id == alloc.employee_id))
-        emp = emp.scalar()
-        seat = await db.execute(select(Seat).where(Seat.id == alloc.seat_id))
-        seat = seat.scalar()
+    for alloc, emp, seat in alloc_res.fetchall():
         if emp and seat:
             recent_allocations.append({
                 "id": alloc.id,
@@ -112,12 +170,21 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                 "allocatedAt": alloc.allocated_at.isoformat()
             })
 
-    heat_map_data = []
+    # --- heat map: single grouped query instead of 1 query/(floor,zone) pair (50 queries) ---
     zones = ['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E', 'Zone F', 'Zone G', 'Zone H', 'Zone I', 'Zone J']
+
+    heat_res = await db.execute(
+        select(Seat.floor, Seat.zone, Seat.status, func.count(Seat.id))
+        .group_by(Seat.floor, Seat.zone, Seat.status)
+    )
+    heat_map_map = {}
+    for floor, zone, status, cnt in heat_res.fetchall():
+        heat_map_map.setdefault((floor, zone), {})[status] = cnt
+
+    heat_map_data = []
     for floor in range(1, 6):
         for zone in zones:
-            res = await db.execute(select(Seat.status, func.count(Seat.id)).where(Seat.floor == floor, Seat.zone == zone).group_by(Seat.status))
-            zc = {row[0]: row[1] for row in res.fetchall()}
+            zc = heat_map_map.get((floor, zone), {})
             ztot = sum(zc.values())
             zocc = zc.get("OCCUPIED", 0)
             heat_map_data.append({
@@ -146,6 +213,14 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         "heatMapData": heat_map_data
     }
 
+
+# ---------------------------------------------------------------------------
+# Employees
+# ---------------------------------------------------------------------------
+# Previously: 1 base query + up to 2 extra queries per row (seat lookup +
+# project lookup) = up to 1 + 2*limit queries per page.
+# Now: 1 count query + 1 joined query = 2 queries total, regardless of
+# page size.
 @router.get("/employees")
 async def get_employees(
     search: str = "",
@@ -158,58 +233,53 @@ async def get_employees(
     sortOrder: str = "asc",
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Employee).where(Employee.is_deleted == False)
+    filters = [Employee.is_deleted == False]
 
     if search:
-        search = f"%{search.lower()}%"
-        query = query.where(or_(
-            func.lower(Employee.first_name).like(search),
-            func.lower(Employee.last_name).like(search),
-            func.lower(Employee.emp_code).like(search),
-            func.lower(Employee.email).like(search)
+        search_term = f"%{search.lower()}%"
+        filters.append(or_(
+            func.lower(Employee.first_name).like(search_term),
+            func.lower(Employee.last_name).like(search_term),
+            func.lower(Employee.emp_code).like(search_term),
+            func.lower(Employee.email).like(search_term)
         ))
     if department and department != "ALL":
-        query = query.where(Employee.department == department)
+        filters.append(Employee.department == department)
     if project and project != "ALL":
-        query = query.where(Employee.project_id == project)
+        filters.append(Employee.project_id == project)
     if status:
         if status == "ALLOCATED":
-            query = query.where(Employee.seat_id != None)
+            filters.append(Employee.seat_id != None)
         elif status == "PENDING":
-            query = query.where(Employee.seat_id == None)
+            filters.append(Employee.seat_id == None)
         elif status == "ACTIVE":
-            query = query.where(Employee.is_active == True)
+            filters.append(Employee.is_active == True)
 
     order_col = getattr(Employee, sortBy, Employee.emp_code)
-    if sortOrder == "desc":
-        query = query.order_by(desc(order_col))
-    else:
-        query = query.order_by(order_col)
+    order_by_clause = desc(order_col) if sortOrder == "desc" else order_col
 
-    count_query = select(func.count()).select_from(query.subquery())
+    # Count query stays lightweight (no joins needed since filters are all
+    # on Employee columns).
+    count_query = select(func.count()).select_from(Employee).where(*filters)
     total_res = await db.execute(count_query)
     total = total_res.scalar() or 0
 
-    query = query.offset((page - 1) * limit).limit(limit)
-    res = await db.execute(query)
-    items = res.scalars().all()
+    # Single joined query fetches Employee + Seat + Project together,
+    # eliminating the per-row lookups.
+    data_query = (
+        select(Employee, Seat, Project)
+        .outerjoin(Seat, Employee.seat_id == Seat.id)
+        .outerjoin(Project, Employee.project_id == Project.id)
+        .where(*filters)
+        .order_by(order_by_clause)
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    res = await db.execute(data_query)
+    rows = res.all()
 
     enriched = []
-    for emp in items:
-        seat_number, floor, zone, project_name = None, None, None, None
-        if emp.seat_id:
-            s_res = await db.execute(select(Seat).where(Seat.id == emp.seat_id))
-            s = s_res.scalar()
-            if s:
-                seat_number = s.seat_number
-                floor = s.floor
-                zone = s.zone
-        if emp.project_id:
-            p_res = await db.execute(select(Project).where(Project.id == emp.project_id))
-            p = p_res.scalar()
-            if p:
-                project_name = p.name
-
+    for emp, seat, proj in rows:
         emp_dict = {
             "id": emp.id,
             "emp_code": emp.emp_code,
@@ -221,10 +291,10 @@ async def get_employees(
             "joining_date": emp.joining_date,
             "project_id": emp.project_id,
             "seat_id": emp.seat_id,
-            "seat_number": seat_number,
-            "floor": floor,
-            "zone": zone,
-            "project_name": project_name,
+            "seat_number": seat.seat_number if seat else None,
+            "floor": seat.floor if seat else None,
+            "zone": seat.zone if seat else None,
+            "project_name": proj.name if proj else None,
             "is_active": emp.is_active,
             "is_deleted": emp.is_deleted,
             "created_at": emp.created_at
@@ -239,16 +309,23 @@ async def get_employees(
         "totalPages": math.ceil(total / limit) if limit else 1
     }
 
+
 @router.get("/projects", response_model=List[ProjectResponse])
 async def get_projects(db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(Project))
-    projects = res.scalars().all()
+    # Single grouped query instead of 2 queries per project.
+    assigned_expr = func.sum(case((Employee.is_deleted == False, 1), else_=0))
+    allocated_expr = func.sum(case((and_(Employee.is_deleted == False, Employee.seat_id != None), 1), else_=0))
+
+    res = await db.execute(
+        select(Project, assigned_expr, allocated_expr)
+        .outerjoin(Employee, Employee.project_id == Project.id)
+        .group_by(Project.id)
+    )
+
     enriched = []
-    for p in projects:
-        emp_res = await db.execute(select(func.count(Employee.id)).where(Employee.project_id == p.id, Employee.is_deleted == False))
-        assigned = emp_res.scalar() or 0
-        alloc_res = await db.execute(select(func.count(Employee.id)).where(Employee.project_id == p.id, Employee.seat_id != None, Employee.is_deleted == False))
-        allocated = alloc_res.scalar() or 0
+    for p, assigned, allocated in res.fetchall():
+        assigned = assigned or 0
+        allocated = allocated or 0
         util = (allocated / p.capacity * 100) if p.capacity > 0 else 0
         enriched.append(ProjectResponse(
             **p.__dict__,
@@ -257,6 +334,13 @@ async def get_projects(db: AsyncSession = Depends(get_db)):
         ))
     return enriched
 
+
+# ---------------------------------------------------------------------------
+# Seats
+# ---------------------------------------------------------------------------
+# Previously: 1 base query + up to 2 extra queries per row (occupant lookup +
+# project lookup) = up to 1 + 2*limit queries per page.
+# Now: 1 count query + 1 joined query = 2 queries total.
 @router.get("/seats")
 async def get_seats(
     floor: Optional[int] = None,
@@ -267,41 +351,37 @@ async def get_seats(
     limit: int = 200,
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Seat)
+    filters = []
     if floor is not None:
-        query = query.where(Seat.floor == floor)
+        filters.append(Seat.floor == floor)
     if zone and zone != "ALL":
-        query = query.where(Seat.zone == zone)
+        filters.append(Seat.zone == zone)
     if status and status != "ALL":
-        query = query.where(Seat.status == status)
-
+        filters.append(Seat.status == status)
     if search:
-        search = f"%{search.lower()}%"
-        query = query.where(func.lower(Seat.seat_number).like(search))
+        search_term = f"%{search.lower()}%"
+        filters.append(func.lower(Seat.seat_number).like(search_term))
 
-    count_query = select(func.count()).select_from(query.subquery())
+    count_query = select(func.count()).select_from(Seat).where(*filters)
     total_res = await db.execute(count_query)
     total = total_res.scalar() or 0
 
-    query = query.offset((page - 1) * limit).limit(limit)
-    res = await db.execute(query)
-    items = res.scalars().all()
-    
+    # occupant comes from Seat.occupant_id -> Employee; project_name comes
+    # from that Employee's project_id -> Project (matches original behavior,
+    # which used the occupant's project rather than Seat.project_id).
+    data_query = (
+        select(Seat, Employee, Project)
+        .outerjoin(Employee, Seat.occupant_id == Employee.id)
+        .outerjoin(Project, Employee.project_id == Project.id)
+        .where(*filters)
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    res = await db.execute(data_query)
+    rows = res.all()
+
     enriched = []
-    for s in items:
-        occupant_name, occupant_emp_code, project_name = None, None, None
-        if s.occupant_id:
-            e_res = await db.execute(select(Employee).where(Employee.id == s.occupant_id))
-            e = e_res.scalar()
-            if e:
-                occupant_name = f"{e.first_name} {e.last_name}"
-                occupant_emp_code = e.emp_code
-                if e.project_id:
-                    p_res = await db.execute(select(Project).where(Project.id == e.project_id))
-                    p = p_res.scalar()
-                    if p:
-                        project_name = p.name
-        
+    for s, e, p in rows:
         s_dict = {
             "id": s.id,
             "seat_number": s.seat_number,
@@ -310,10 +390,10 @@ async def get_seats(
             "bay": s.bay,
             "status": s.status,
             "occupant_id": s.occupant_id,
-            "occupant_name": occupant_name,
-            "occupant_emp_code": occupant_emp_code,
+            "occupant_name": f"{e.first_name} {e.last_name}" if e else None,
+            "occupant_emp_code": e.emp_code if e else None,
             "project_id": s.project_id,
-            "project_name": project_name,
+            "project_name": p.name if (e and p) else None,
             "is_active": s.is_active
         }
         enriched.append(s_dict)
@@ -326,55 +406,99 @@ async def get_seats(
         "totalPages": math.ceil(total / limit) if limit else 1
     }
 
+
 @router.post("/ai/query")
 async def ai_query(req: AIQueryRequest, db: AsyncSession = Depends(get_db)):
-    q = req.query.lower()
-    answer = "I am Ethara AI Assistant. I can help you search employees, check seat availability, and more."
-    action_type = "INFO"
-    data = {}
-    followups = []
+    query = req.query.strip()
 
-    if "where is" in q or "find" in q or "seat of" in q:
-        action_type = "SEARCH"
-        name_match = q.replace("where is", "").replace("seat of", "").replace("find", "").strip()
-        res = await db.execute(select(Employee).where(
-            Employee.is_deleted == False,
-            or_(
-                func.lower(Employee.first_name).like(f"%{name_match}%"),
-                func.lower(Employee.last_name).like(f"%{name_match}%"),
-                func.lower(Employee.emp_code).like(f"%{name_match}%")
+    # Fetch some database context
+    emp_res = await db.execute(
+        select(Employee).where(Employee.is_deleted == False).limit(50)
+    )
+    employees = emp_res.scalars().all()
+
+    seat_res = await db.execute(
+        select(Seat).limit(50)
+    )
+    seats = seat_res.scalars().all()
+
+    project_res = await db.execute(
+        select(Project)
+    )
+    projects = project_res.scalars().all()
+
+    employee_context = "\n".join([
+        f"{e.first_name} {e.last_name} | {e.emp_code} | Seat:{e.seat_id or 'None'} | Project:{e.project_id or 'None'}"
+        for e in employees
+    ])
+
+    seat_context = "\n".join([
+        f"{s.seat_number} | Floor {s.floor} | {s.zone} | {s.status}"
+        for s in seats
+    ])
+
+    project_context = "\n".join([
+        f"{p.name} ({p.code})"
+        for p in projects
+    ])
+
+    prompt = f"""
+You are Ethara AI Assistant.
+
+Database Information
+
+Employees:
+{employee_context}
+
+Projects:
+{project_context}
+
+Seats:
+{seat_context}
+
+User Question:
+{query}
+
+Rules:
+- Answer only using the given database.
+- If employee exists, mention seat number, floor, zone and project.
+- If seat is unavailable, explain why.
+- Keep answer short and professional.
+"""
+
+    # Gemini
+    if model:
+        try:
+            response = model.generate_content(prompt)
+
+            return AIQueryResponse(
+                query=query,
+                answer=response.text,
+                action_type="AI",
+                data={},
+                suggested_followups=[
+                    "Show available seats",
+                    "Find employee",
+                    "Project utilization"
+                ]
             )
-        ).limit(1))
-        emp = res.scalar()
-        if emp:
-            seat_info = "unallocated"
-            if emp.seat_id:
-                s_res = await db.execute(select(Seat).where(Seat.id == emp.seat_id))
-                s = s_res.scalar()
-                if s:
-                    seat_info = f"at {s.seat_number} on Floor {s.floor}, {s.zone}"
-            answer = f"{emp.first_name} {emp.last_name} ({emp.emp_code}) is currently {seat_info}."
-            data["employees"] = [{"id": emp.id, "firstName": emp.first_name, "lastName": emp.last_name, "empCode": emp.emp_code}]
-        else:
-            answer = f"I could not find an active employee matching '{name_match}'."
 
-    elif "available seats" in q or "floor" in q:
-        floor = 1
-        if "floor 2" in q: floor = 2
-        elif "floor 3" in q: floor = 3
-        elif "floor 4" in q: floor = 4
-        elif "floor 5" in q: floor = 5
-        
-        res = await db.execute(select(func.count(Seat.id)).where(Seat.floor == floor, or_(Seat.status == 'AVAILABLE', Seat.status == 'RELEASED')))
-        avail = res.scalar() or 0
-        answer = f"There are {avail} available seats on Floor {floor}."
-        followups = [f"Show floor {floor} map"]
+        except Exception as e:
+            print("Gemini Error:", e)
 
-    return AIQueryResponse(query=req.query, answer=answer, action_type=action_type, data=data, suggested_followups=followups)
+    return AIQueryResponse(
+        query=query,
+        answer="AI service is currently unavailable.",
+        action_type="ERROR",
+        data={},
+        suggested_followups=[]
+    )
+
 
 @router.post("/seed/reset")
 async def seed_reset(db: AsyncSession = Depends(get_db)):
     return {"message": "Enterprise database setup completed via background script."}
+
 
 @router.post("/employees", response_model=EmployeeResponse)
 async def create_employee(emp: EmployeeCreate, db: AsyncSession = Depends(get_db)):
@@ -437,6 +561,7 @@ async def create_employee(emp: EmployeeCreate, db: AsyncSession = Depends(get_db
         "created_at": new_emp.created_at
     }
 
+
 @router.put("/employees/{emp_id}", response_model=EmployeeResponse)
 async def update_employee(emp_id: str, emp_update: EmployeeUpdate, db: AsyncSession = Depends(get_db)):
     res = await db.execute(
@@ -475,36 +600,33 @@ async def update_employee(emp_id: str, emp_update: EmployeeUpdate, db: AsyncSess
         "created_at": emp.created_at
     }
 
+
 @router.get("/employees/{emp_id}", response_model=EmployeeResponse)
 async def get_employee(emp_id: str, db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(Employee).where(Employee.id == emp_id, Employee.is_deleted == False))
-    emp = res.scalar()
-    if not emp:
+    # Single joined query instead of up to 3 sequential queries.
+    res = await db.execute(
+        select(Employee, Seat, Project)
+        .outerjoin(Seat, Employee.seat_id == Seat.id)
+        .outerjoin(Project, Employee.project_id == Project.id)
+        .where(Employee.id == emp_id, Employee.is_deleted == False)
+    )
+    row = res.first()
+    if not row:
         raise HTTPException(status_code=404, detail="Employee not found")
-        
-    p_name, s_num, floor, zone = None, None, None, None
-    if emp.project_id:
-        p_res = await db.execute(select(Project).where(Project.id == emp.project_id))
-        p = p_res.scalar()
-        if p: p_name = p.name
-    if emp.seat_id:
-        s_res = await db.execute(select(Seat).where(Seat.id == emp.seat_id))
-        s = s_res.scalar()
-        if s:
-            s_num = s.seat_number
-            floor = s.floor
-            zone = s.zone
+
+    emp, seat, proj = row
 
     return {
         **emp.__dict__,
-        "project_name": p_name,
-        "seat_number": s_num,
-        "floor": floor,
-        "zone": zone,
+        "project_name": proj.name if proj else None,
+        "seat_number": seat.seat_number if seat else None,
+        "floor": seat.floor if seat else None,
+        "zone": seat.zone if seat else None,
         "is_active": emp.is_active,
         "is_deleted": emp.is_deleted,
         "created_at": emp.created_at
     }
+
 
 @router.delete("/employees/{emp_id}")
 async def delete_employee(emp_id: str, db: AsyncSession = Depends(get_db)):
@@ -527,6 +649,7 @@ async def delete_employee(emp_id: str, db: AsyncSession = Depends(get_db)):
     
     await db.commit()
     return {"message": f"Employee {emp.emp_code} deleted successfully."}
+
 
 @router.post("/seats/{seat_id}/allocate")
 async def allocate_seat(seat_id: str, req: SeatAllocationRequest, db: AsyncSession = Depends(get_db)):
@@ -558,6 +681,7 @@ async def allocate_seat(seat_id: str, req: SeatAllocationRequest, db: AsyncSessi
     await db.commit()
     return {"message": f"Seat {seat.seat_number} allocated to {emp.emp_code}"}
 
+
 @router.post("/seats/{seat_id}/release")
 async def release_seat(seat_id: str, db: AsyncSession = Depends(get_db)):
     s_res = await db.execute(select(Seat).where(Seat.id == seat_id))
@@ -578,6 +702,7 @@ async def release_seat(seat_id: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"message": f"Seat {seat.seat_number} released."}
 
+
 @router.post("/seats/{seat_id}/status")
 async def seat_status(seat_id: str, req: dict, db: AsyncSession = Depends(get_db)):
     s_res = await db.execute(select(Seat).where(Seat.id == seat_id))
@@ -593,10 +718,12 @@ async def seat_status(seat_id: str, req: dict, db: AsyncSession = Depends(get_db
     await db.commit()
     return {"message": f"Seat {seat.seat_number} status updated to {new_status}."}
 
+
 @router.get("/audit-logs")
 async def get_audit_logs(limit: int = 50, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(AuditLog).order_by(desc(AuditLog.timestamp)).limit(limit))
     return res.scalars().all()
+
 
 @router.post("/seats/recommend")
 async def recommend_seats(
