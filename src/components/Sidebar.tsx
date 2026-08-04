@@ -7,7 +7,6 @@ import {
   UserPlus,
   Bot,
   History,
-  Settings as SettingsIcon,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
@@ -37,7 +36,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'new-joiner', label: 'New Joiner Wizard', icon: UserPlus, badge: pendingCount > 0 ? `${pendingCount} Pending` : undefined, badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
     { id: 'ai-assistant', label: 'AI Assistant', icon: Bot, highlight: true },
     { id: 'audit-logs', label: 'Audit Logs', icon: History },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
   return (

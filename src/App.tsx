@@ -9,7 +9,6 @@ import { SeatMapView } from './components/Seats/SeatMapView';
 import { NewJoinerWizard } from './components/Allocation/NewJoinerWizard';
 import { AIAssistantDrawer } from './components/AIAssistant/AIAssistantDrawer';
 import { AuditLogView } from './components/Audit/AuditLogView';
-import { SettingsView } from './components/Settings/SettingsView';
 import { Employee, Project, Seat, DashboardStats } from './types';
 import { api } from './services/api';
 
@@ -147,7 +146,6 @@ export function App() {
 
           {activeTab === 'audit-logs' && <AuditLogView />}
 
-          {activeTab === 'settings' && <SettingsView />}
         </main>
       </div>
 

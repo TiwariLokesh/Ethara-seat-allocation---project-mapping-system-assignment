@@ -66,25 +66,6 @@ export const Header: React.FC<HeaderProps> = ({
           <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
           <span className="hidden md:inline">Ask Ethara AI</span>
         </button>
-
-        {/* Theme Toggle */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-          title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-        </button>
-
-        {/* Notifications */}
-        <button
-          className="relative p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-          title="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500"></span>
-        </button>
       </div>
     </header>
   );
