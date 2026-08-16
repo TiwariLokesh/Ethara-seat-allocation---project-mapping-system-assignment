@@ -321,7 +321,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6">
       {toastMessage && (
         <div
           className={`fixed top-4 right-4 z-50 max-w-sm rounded-xl border px-4 py-3 shadow-lg backdrop-blur-xs ${
@@ -344,7 +344,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
             Managing {total.toLocaleString()} active employees across 11 departments.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center gap-2"
@@ -369,7 +369,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
       {/* Filter & Search Controls Bar */}
       <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
         {/* Search Field */}
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative flex-1 min-w-full sm:min-w-[240px]">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
@@ -444,7 +444,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
       {/* Main Employee Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full min-w-[860px] text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase">
                 <th className="p-4">Employee Code</th>
@@ -593,8 +593,8 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
 
       {/* Add Employee Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Plus className="w-5 h-5 text-indigo-500" /> Add New Employee Record
@@ -604,14 +604,14 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleAddSubmit} className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
               {formError && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" /> {formError}
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">First Name *</label>
                   <input
@@ -634,7 +634,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Emp Code *</label>
                   <input
@@ -659,7 +659,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department</label>
                   <select
@@ -731,8 +731,8 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
 
       {/* Edit Employee Modal */}
       {selectedEmployee && editFormData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-indigo-500" /> Edit Employee Record
@@ -742,14 +742,14 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleEditSubmit} className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
               {editFormError && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" /> {editFormError}
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee ID</label>
                   <input
@@ -772,7 +772,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee Name *</label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <input
                       type="text"
@@ -794,7 +794,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Email *</label>
                   <input
@@ -818,7 +818,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
                   <select
@@ -869,7 +869,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Joining Date *</label>
                   <input
@@ -905,8 +905,8 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
 
       {/* Bulk Import CSV Modal */}
       {isBulkImportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-xl max-h-[calc(100dvh-1.5rem)] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-purple-500" /> Bulk Import Employees (CSV)
@@ -916,7 +916,7 @@ export const EmployeeListView: React.FC<EmployeeListViewProps> = ({
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
               <p className="text-slate-500 dark:text-slate-400">
                 Paste CSV rows in format: <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-sm">empCode, firstName, lastName, email, department, role</code>
               </p>

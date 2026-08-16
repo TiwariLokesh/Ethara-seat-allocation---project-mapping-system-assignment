@@ -76,7 +76,7 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6">
       {/* NEW: Toast Notification */}
       {toastMessage && (
         <div
@@ -183,8 +183,8 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
 
       {/* Add Project Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Plus className="w-5 h-5 text-purple-500" /> Create New Enterprise Project
@@ -194,7 +194,7 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleCreateProject} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleCreateProject} className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
               {error && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" /> {error}
@@ -213,7 +213,7 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Project Code *</label>
                   <input
@@ -237,7 +237,7 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Manager Name *</label>
                   <input
@@ -259,7 +259,7 @@ export const ProjectListView: React.FC<ProjectListViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Preferred Floor</label>
                   <select

@@ -14,6 +14,7 @@ import { api } from './services/api';
 export function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [collapsedSidebar, setCollapsedSidebar] = useState<boolean>(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [darkMode, setDarkMode] = useState<boolean>(true);
 
   // Modals & Drawers
@@ -81,6 +82,8 @@ export function App() {
         setActiveTab={setActiveTab}
         collapsed={collapsedSidebar}
         setCollapsed={setCollapsedSidebar}
+        mobileOpen={isMobileSidebarOpen}
+        setMobileOpen={setIsMobileSidebarOpen}
         pendingCount={stats?.pendingAllocation || 0}
       />
 
@@ -92,6 +95,7 @@ export function App() {
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           activeTabTitle={activeTab.replace('-', ' ')}
+          onToggleSidebar={() => setIsMobileSidebarOpen(open => !open)}
         />
 
         <main className="flex-1 overflow-y-auto">

@@ -163,7 +163,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
   const availableTargetSeats = seats.filter(s => (s.status === 'AVAILABLE' || s.status === 'RELEASED') && s.id !== activeSeat?.id);
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -176,7 +176,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3 text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-semibold">
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available
           </span>
@@ -213,7 +213,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
         </div>
 
         {/* Zone Selector & Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2 overflow-x-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">Zones:</span>
             {['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E', 'Zone F', 'Zone G', 'Zone H', 'Zone I', 'Zone J'].map(z => (
@@ -231,7 +231,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 w-full sm:w-auto">
             {/* Status Filter */}
             <select
               value={statusFilter}
@@ -246,7 +246,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
             </select>
 
             {/* Quick Search */}
-            <div className="relative w-48">
+            <div className="relative w-full xs:w-48">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
@@ -263,7 +263,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
       {/* Main Seat Map Grid Container */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Grid Canvas */}
-        <div className="flex-1 p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
+        <div className="flex-1 min-w-0 p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between mb-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
             <span>
               Floor {selectedFloor} • {selectedZone} ({seats.length} seats)
@@ -276,7 +276,8 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
               Loading seat layout for Floor {selectedFloor} {selectedZone}...
             </div>
           ) : (
-            <div className="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-11 gap-2.5 max-h-[600px] overflow-y-auto p-2 border border-slate-100 dark:border-slate-800/80 rounded-xl">
+            <div className="overflow-x-auto rounded-xl">
+              <div className="min-w-[620px] grid grid-cols-10 md:grid-cols-11 gap-2.5 max-h-[600px] overflow-y-auto p-2 border border-slate-100 dark:border-slate-800/80 rounded-xl">
               {seats.map(seat => {
                 const isSelected = activeSeat?.id === seat.id;
 
@@ -297,7 +298,7 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
                       setDrawerMode('VIEW');
                       setActionMessage('');
                     }}
-                    className={`relative p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer font-mono ${colorStyle} ${
+                    className={`relative min-h-14 p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer font-mono ${colorStyle} ${
                       isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 scale-105 shadow-md' : ''
                     }`}
                   >
@@ -308,13 +309,14 @@ export const SeatMapView: React.FC<SeatMapViewProps> = ({
                   </button>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
 
         {/* Seat Operations Drawer Panel */}
         {activeSeat && (
-          <div className="w-full lg:w-96 p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col justify-between space-y-6 animate-in slide-in-from-right-5 duration-200">
+          <div className="w-full lg:w-96 p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col justify-between space-y-6 animate-in slide-in-from-right-5 duration-200">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">

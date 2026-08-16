@@ -18,6 +18,8 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
   pendingCount?: number;
 }
 
@@ -26,6 +28,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   collapsed,
   setCollapsed,
+  mobileOpen,
+  setMobileOpen,
   pendingCount = 50
 }) => {
   const navItems = [
@@ -39,7 +43,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`relative flex flex-col h-screen bg-slate-900 border-r border-slate-800 text-slate-300 transition-all duration-300 z-30 ${
+      className={`fixed inset-y-0 left-0 flex flex-col h-screen bg-slate-900 border-r border-slate-800 text-slate-300 transition-all duration-300 z-40 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:static lg:translate-x-0 ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -75,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { setActiveTab(item.id); setMobileOpen(false); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all relative ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
@@ -134,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-semibold text-white truncate">Amit Sharma</span>
-              <span className="text-[11px] text-slate-400 truncate">Facility Admin</span>
+              <span className="text-[11px] text-slate-400 truncate">Admin</span>
             </div>
           )}
         </div>

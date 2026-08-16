@@ -112,7 +112,7 @@ export const NewJoinerWizard: React.FC<NewJoinerWizardProps> = ({
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-6 sm:space-y-8">
       {/* Page Header */}
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center justify-center gap-2">
@@ -160,7 +160,7 @@ export const NewJoinerWizard: React.FC<NewJoinerWizardProps> = ({
       </div>
 
       {/* Wizard Step Cards */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-lg p-6 md:p-8">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-lg p-4 sm:p-6 md:p-8">
         {error && (
           <div className="mb-6 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" /> {error}

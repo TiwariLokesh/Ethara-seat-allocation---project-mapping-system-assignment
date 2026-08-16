@@ -85,7 +85,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[480px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
             <Sparkles className="w-5 h-5 text-amber-300" />
@@ -127,7 +127,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/80 dark:border-slate-700/80'
               }`}
             >
-              <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+              <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
 
               {/* Structured Data Cards if returned */}
               {msg.data && msg.data.employees && msg.data.employees.length > 0 && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, Sparkles, Moon, Sun, Layers, HelpCircle } from 'lucide-react';
+import { Search, Bell, Sparkles, Moon, Sun, Layers, HelpCircle, Menu } from 'lucide-react';
 
 interface HeaderProps {
   onOpenCommandPalette: () => void;
@@ -7,6 +7,7 @@ interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (dark: boolean) => void;
   activeTabTitle: string;
+  onToggleSidebar: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,18 +15,22 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAIAssistant,
   darkMode,
   setDarkMode,
-  activeTabTitle
+  activeTabTitle,
+  onToggleSidebar
 }) => {
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between h-16 px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <header className="sticky top-0 z-20 flex items-center justify-between h-16 px-3 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors gap-2">
       {/* Title Breadcrumb */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <button onClick={onToggleSidebar} className="lg:hidden p-2 -ml-1 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open navigation menu">
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="hidden sm:flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium">
           <Layers className="w-4 h-4 text-indigo-500" />
           <span>Ethara HQ</span>
           <span>/</span>
         </div>
-        <h1 className="text-lg font-bold text-slate-900 dark:text-white capitalize tracking-tight">
+        <h1 className="truncate text-base sm:text-lg font-bold text-slate-900 dark:text-white capitalize tracking-tight">
           {activeTabTitle}
         </h1>
       </div>
@@ -49,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right Controls & AI Trigger */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {/* Mobile Search Button */}
         <button
           onClick={onOpenCommandPalette}
